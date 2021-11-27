@@ -1,32 +1,30 @@
 import { Options } from "./options"
-import { parseNextString, populateObject } from "./parsing"
+import { parseString, parse } from "./parsing"
 
 const DISABLE_ALL_OPTIMIZATIONS: Options = {
-  enableShortBodyOptimization: false, enableShortValueOptimization: false
+  chunkMillisThreshold: 50,
+  enableShortBodyOptimization: false,
+  enableShortValueOptimization: false
 };
 
-describe("parseNextString", () => {
-  it("works correctly", () => {
-    expect(parseNextString('  "example key": ', 1)).toEqual(["example key", 14])
+
+describe("parse", () => {
+  it("base case without optimizations", async () => {
+    const json = '{"key1":"test", "key2":{"value":"test2", "array": ["one", "two"]}, "another": true, "other": null, "finally": 123}';
+
+    const parsed = await parse(json, DISABLE_ALL_OPTIMIZATIONS);
+
+    expect(parsed).toEqual(JSON.parse(json));
   })
+
 
   // TODO: test invalid syntax
 })
 
-describe("populateObject", () => {
-  it("base case without optimizations", () => {
-    const json = '{"key1":"test", "key2":{"value":"test2"}}';
+// describe("parseNextString", () => {
+//   it("works correctly", () => {
+//     expect(parseString('  "example key": ', 1)).toEqual(["example key", 14])
+//   })
 
-    const target = {};
-    const gen = populateObject(target, json, 0, DISABLE_ALL_OPTIMIZATIONS);
-    let count = 0;
-    while (!gen.next().done) {
-      console.log("step " + count);
-      count++;
-    }
-
-    expect(target).toEqual(JSON.parse(json));
-  })
-
-  // TODO: test invalid syntax
-})
+//   // TODO: test invalid syntax
+// })

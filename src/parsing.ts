@@ -21,39 +21,37 @@
 // SOFTWARE.
 
 import { Options, defaultOptions } from "./options";
-
-export async function parse(body: string, options: Options = defaultOptions): Promise<unknown> {
-  // TODO: actually pass the threshold as an option
-  if (body.length < 1000 && options.enableShortBodyOptimization) {
-    return Promise.resolve(JSON.parse(body));
-  }
-
-  // TODO: check if start as object or array, and assume that it's too big to find boundaries here
-}
-
-// Algorithm:
-// 1. Scan the object/array
-//    - If total string len is less then a threshold, JSON.parse over it
-//    - If over, decompose the object/array
+import { processAsync } from "./scheduling";
 
 type EndIndex = number;
+
+export async function parse(body: string, options: Options = defaultOptions): Promise<unknown> {
+  // // TODO: actually pass the threshold as an option
+  // if (body.length < 10000 && options.enableShortBodyOptimization) {
+  //   return Promise.resolve(JSON.parse(body));
+  // }
+
+  const generator = parseValue(body, 0, options);
+  return processAsync(generator, options.chunkMillisThreshold);
+}
+
 
 // TODO: should be usable for arrays as well
 function findObjectBoundaries(
   body: string,
   index: number,
-  maxObjectLength: number
+  maxLength: number,
 ): EndIndex | undefined {
   let deepLevel = 0;
   let insideString = false;
   let ignoreNext = false;
   let offset = 0;
 
-  while (offset < maxObjectLength) {
+  while (offset < maxLength) {
     const char = body[index];
 
     if (char === undefined) {
-      throw new Error("unexpected EOF");
+      throw new Error("unexpected EOF while searching for objects");
     }
 
     if (char === '"') {
@@ -69,35 +67,172 @@ function findObjectBoundaries(
     } else if (char === "}" && !insideString) {
       deepLevel--;
       if (deepLevel === 0) {
-        return offset;
+        return index;
       }
     }
 
     offset++;
+    index++;
   }
 
   return undefined;
 }
 
-export function* populateObject(
+function findArrayBoundaries(
+  body: string,
+  index: number,
+  maxLength: number,
+): EndIndex | undefined {
+  let deepLevel = 0;
+  let insideString = false;
+  let ignoreNext = false;
+  let offset = 0;
+
+  while (offset < maxLength) {
+    const char = body[index];
+
+    if (char === undefined) {
+      throw new Error("unexpected EOF while searching for arrays");
+    }
+
+    if (char === '"') {
+      if (!ignoreNext) {
+        insideString = !insideString;
+      } else {
+        ignoreNext = false;
+      }
+    } else if (char === "\\") {
+      ignoreNext = true;
+    } else if (char === "[" && !insideString) {
+      deepLevel++;
+    } else if (char === "]" && !insideString) {
+      deepLevel--;
+      if (deepLevel === 0) {
+        return index;
+      }
+    }
+
+    offset++;
+    index++;
+  }
+
+  return undefined;
+}
+
+
+function* parseObject(
   targetObject: object,
   body: string,
   index: number,
   options: Options,
 ): Generator<void, EndIndex> {
   if (options.enableShortValueOptimization) {
-    const endIndex = findObjectBoundaries(body, index, 100); // TODO: change the threshold
+    const endIndex = findObjectBoundaries(body, index, 1000); // TODO: change the threshold
 
     if (endIndex !== undefined) {
-      targetObject = JSON.parse(body.slice(index, endIndex + 1));
+      const slice = body.slice(index, endIndex + 1);
+      Object.assign(targetObject, JSON.parse(slice));
       return endIndex;
     }
   }
 
-  return yield* populateObjectMembers(targetObject, body, index, options);
+  return yield* parseObjectIncrementally(targetObject, body, index, options);
 }
 
-export function parseNextString(
+function* parseObjectIncrementally(
+  targetObject: object,
+  body: string,
+  index: number,
+  options: Options
+): Generator<void, EndIndex> {
+  index++;
+
+  while (true) {
+    const [key, keyEndIndex] = parseString(body, index);
+    index = keyEndIndex + 1;
+
+    const [colon, colonEndIndex] = parseNonWhitespace(body, index);
+    if (colon !== ":") {
+      throw new Error("invalid JSON syntax, expected colon :");
+    }
+    index = colonEndIndex + 1;
+
+    const [value, valueEndIndex] = yield* parseValue(body, index, options);
+    index = valueEndIndex + 1;
+
+    targetObject[key] = value;
+
+    yield;
+
+    const [separator, separatorEndIndex] = parseNonWhitespace(body, index);
+    if (separator === ",") {
+      index = separatorEndIndex + 1;
+      continue;
+    } else if (separator === "}") {
+      break;
+    } else {
+      throw new Error("unexpected end of object, char: " + separator);
+    }
+
+  }
+
+  return index;
+}
+
+function* parseArray(
+  targetArray: unknown[],
+  body: string,
+  index: number,
+  options: Options,
+): Generator<void, EndIndex> {
+  if (options.enableShortValueOptimization) {
+    const endIndex = findArrayBoundaries(body, index, 1000); // TODO: change the threshold
+
+    if (endIndex !== undefined) {
+      const slice = body.slice(index, endIndex + 1);
+      const parsedArray = JSON.parse(slice);
+      for (let i = 0; i < parsedArray.length; i++) {
+        targetArray.push(parsedArray[i]);
+      }
+      return endIndex;
+    }
+  }
+
+  return yield* parseArrayIncrementally(targetArray, body, index, options);
+}
+
+function* parseArrayIncrementally(
+  targetArray: unknown[],
+  body: string,
+  index: number,
+  options: Options
+): Generator<void, EndIndex> {
+  index++;
+  while (true) {
+    const [value, valueEndIndex] = yield* parseValue(body, index, options);
+    index = valueEndIndex + 1;
+
+    targetArray.push(value);
+
+    yield;
+
+    const [separator, separatorEndIndex] = parseNonWhitespace(body, index);
+    if (separator === ",") {
+      index = separatorEndIndex + 1;
+      continue;
+    } else if (separator === "]") {
+      break;
+    } else {
+      throw new Error("unexpected end of object, char: " + separator);
+    }
+
+  }
+
+  return index;
+}
+
+
+export function parseString(
   body: string,
   index: number,
 ): [string, EndIndex] {
@@ -133,7 +268,29 @@ export function parseNextString(
   }
 }
 
-function parseNextNonWhitespace(
+export function parseNumberBoolOrNull(
+  body: string,
+  index: number,
+): [unknown, EndIndex] {
+  let startIndex = index;
+  while (true) {
+    const char = body[index];
+
+    if (char === undefined) {
+      throw new Error("unexpected EOF");
+    }
+
+    if (char === ',' || char === "]" || char === "}" || char === '"') {
+      const slice = body.slice(startIndex, index);
+      return [JSON.parse(slice), index - 1];
+    }
+
+    index++;
+  }
+}
+
+
+function parseNonWhitespace(
   body: string,
   index: number,
 ): [string, EndIndex] {
@@ -153,62 +310,24 @@ function parseNextNonWhitespace(
 }
 
 
-function* populateObjectMembers(
-  targetObject: object,
-  body: string,
-  index: number,
-  options: Options
-): Generator<void, EndIndex> {
-  while (true) {
-    const [key, keyEndIndex] = parseNextString(body, index);
-    index = keyEndIndex + 1;
-
-    const [colon, colonEndIndex] = parseNextNonWhitespace(body, index);
-    if (colon !== ":") {
-      throw new Error("invalid JSON syntax, expected colon :");
-    }
-    index = colonEndIndex + 1;
-
-    const [value, valueEndIndex] = yield* parseNextValue(body, index, options);
-    index = valueEndIndex + 1;
-
-    targetObject[key] = value;
-
-    yield;
-
-    const [separator, separatorEndIndex] = parseNextNonWhitespace(body, index);
-    if (separator === ",") {
-      continue;
-    } else if (separator === "}") {
-      break;
-    } else {
-      throw new Error("unexpected end of object, char: " + separator);
-    }
-
-  }
-
-  return index;
-}
-
-function* parseNextValue(
+function* parseValue(
   body: string,
   index: number,
   options: Options
 ): Generator<void, [unknown, EndIndex]> {
-  const [startChar, startCharEndIndex] = parseNextNonWhitespace(body, index);
+  const [startChar, startCharEndIndex] = parseNonWhitespace(body, index);
 
   if (startChar === "{") {
     const objValue = {};
-    const objEndIndex = yield* populateObject(objValue, body, startCharEndIndex, options);
+    const objEndIndex = yield* parseObject(objValue, body, startCharEndIndex, options);
     return [objValue, objEndIndex];
   } else if (startChar === "[") {
-    // TODO
-    throw new Error("TODO!");
+    const arrayValue = [];
+    const arrayEndIndex = yield* parseArray(arrayValue, body, startCharEndIndex, options);
+    return [arrayValue, arrayEndIndex];
   } else if (startChar === '"') {
-    const [string, stringEndIndex] = parseNextString(body, startCharEndIndex);
-    return [string, stringEndIndex];
+    return parseString(body, startCharEndIndex);
   } else {
-    // TODO
-    throw new Error("TODO!" + startChar);
+    return parseNumberBoolOrNull(body, startCharEndIndex);
   }
 }

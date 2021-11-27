@@ -21,11 +21,13 @@
 // SOFTWARE.
 
 export type Options = {
+  chunkMillisThreshold: number,
   enableShortBodyOptimization: boolean,
   enableShortValueOptimization: boolean,
 };
 
 export const defaultOptions: Options = {
+  chunkMillisThreshold: 50,
   enableShortBodyOptimization: true,
   enableShortValueOptimization: true,
 }

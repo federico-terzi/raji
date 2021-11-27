@@ -11,6 +11,7 @@
   ],
   "devDependencies": {
     "@types/jest": "^27.0.3",
+    "benny": "^3.7.1",
     "jest": "^27.3.1",
     "ts-jest": "^27.0.7",
     "ts-loader": "^9.2.6",
@@ -20,6 +21,7 @@
   },
   "scripts": {
     "build": "webpack",
+    "benchmark": "webpack && node benchmark/benchmarks.js",
     "test": "jest --config jestconfig.json"
   }
 }

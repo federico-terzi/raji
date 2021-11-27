@@ -20,4 +20,39 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-export { parse } from "./parsing";
+export function executeChunk(generator: Generator<void>, timeoutMillis: number): Promise<unknown | undefined> {
+  return new Promise((resolve, reject) => {
+    setTimeout((): void => {
+      try {
+        const startTime = new Date().getTime();
+
+        while (new Date().getTime() - startTime < timeoutMillis) {
+          const next = generator.next();
+
+          if (next.done) {
+            resolve(next.value[0]);
+            return;
+          }
+        }
+
+        resolve(undefined);
+      } catch (error) {
+        reject(error);
+        return;
+      }
+    }, 0);
+  })
+}
+
+export async function processAsync(generator: Generator<void, [unknown, number]>, chunkTimeoutMillis: number): Promise<unknown> {
+  while (true) {
+    try {
+      const parsed = await executeChunk(generator, chunkTimeoutMillis);
+      if (parsed !== undefined) {
+        return Promise.resolve(parsed);
+      }
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  }
+}
