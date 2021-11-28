@@ -1,16 +1,36 @@
-import { Options } from "../src/options"
+import { defaultOptions, Options } from "../src/options"
 import { parse } from "../src/parsing"
 
 const fs = require("fs");
 const path = require("path");
 
 const DISABLE_ALL_OPTIMIZATIONS: Options = {
-  chunkMillisThreshold: 50,
+  ...defaultOptions,
   enableShortBodyOptimization: false,
   enableShortValueOptimization: false,
-  shortBodyThreshold: 10000,
-  shortValueThreshold: 1000,
 };
+
+const TEST_CASES_OPTIONS_MATRIX: { name: string, options: Options }[] = [
+  {
+    name: "disable all optimizations",
+    options: {
+      ...DISABLE_ALL_OPTIMIZATIONS
+    }
+  },
+  {
+    name: "enable short value optimization",
+    options: {
+      ...DISABLE_ALL_OPTIMIZATIONS,
+      enableShortValueOptimization: true,
+    }
+  },
+  {
+    name: "default settings",
+    options: {
+      ...defaultOptions
+    }
+  }
+]
 
 describe("parse", () => {
   const readTestFiles = (): { body: string, name: string, shouldBeAccepted: boolean }[] => {
@@ -32,37 +52,31 @@ describe("parse", () => {
       });
   }
 
-  const testCases = readTestFiles();
+  const testDataFiles = readTestFiles();
+
+  const testCases = TEST_CASES_OPTIONS_MATRIX.flatMap(options => {
+    return testDataFiles.map(dataFile => ({
+      name: dataFile.name,
+      optionsProfile: options.name,
+      options: options.options,
+      body: dataFile.body,
+      shouldBeAccepted: dataFile.shouldBeAccepted,
+    }))
+  });
 
   test.each(testCases.filter(test => test.shouldBeAccepted))(
-    "test $name should be parsed correctly [without optimizations]",
-    async ({ body }) => {
-      const parsed = await parse(body, DISABLE_ALL_OPTIMIZATIONS);
+    "test $name should be parsed correctly [$optionsProfile]",
+    async ({ body, options }) => {
+      const parsed = await parse(body, options);
 
       expect(parsed).toEqual(JSON.parse(body));
     }
   )
 
   test.each(testCases.filter(test => !test.shouldBeAccepted))(
-    "test $name should throw error [without optimizations]",
-    async ({ body }) => {
-      await expect(parse(body, DISABLE_ALL_OPTIMIZATIONS)).rejects.toThrow();
-    }
-  )
-
-  test.each(testCases.filter(test => test.shouldBeAccepted))(
-    "test $name should be parsed correctly [default options]",
-    async ({ body }) => {
-      const parsed = await parse(body);
-
-      expect(parsed).toEqual(JSON.parse(body));
-    }
-  )
-
-  test.each(testCases.filter(test => !test.shouldBeAccepted))(
-    "test $name should throw error [default options]",
-    async ({ body }) => {
-      await expect(parse(body)).rejects.toThrow();
+    "test $name should throw error [$optionsProfile]",
+    async ({ body, options }) => {
+      await expect(parse(body, options)).rejects.toThrow();
     }
   )
 })
