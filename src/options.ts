@@ -24,10 +24,14 @@ export type Options = {
   chunkMillisThreshold: number,
   enableShortBodyOptimization: boolean,
   enableShortValueOptimization: boolean,
+  shortBodyThreshold: number,
+  shortValueThreshold: number,
 };
 
 export const defaultOptions: Options = {
   chunkMillisThreshold: 50,
   enableShortBodyOptimization: true,
   enableShortValueOptimization: true,
+  shortBodyThreshold: 10000,
+  shortValueThreshold: 1000,
 }

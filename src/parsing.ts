@@ -29,8 +29,7 @@ type BoundaryType = typeof ARRAY_BOUNDARY | typeof OBJECT_BOUNDARY;
 type EndIndex = number;
 
 export async function parse(body: string, options: Options = defaultOptions): Promise<unknown> {
-  // // TODO: actually pass the threshold as an option
-  if (body.length < 10000 && options.enableShortBodyOptimization) {
+  if (body.length < options.shortBodyThreshold && options.enableShortBodyOptimization) {
     return Promise.resolve(JSON.parse(body));
   }
 
@@ -89,7 +88,7 @@ function* parseObject(
   options: Options,
 ): Generator<void, EndIndex> {
   if (options.enableShortValueOptimization) {
-    const endIndex = findBoundaries(body, index, 1000, OBJECT_BOUNDARY); // TODO: change the threshold
+    const endIndex = findBoundaries(body, index, options.shortValueThreshold, OBJECT_BOUNDARY);
 
     if (endIndex !== undefined) {
       const slice = body.slice(index, endIndex + 1);
@@ -155,7 +154,7 @@ function* parseArray(
   options: Options,
 ): Generator<void, EndIndex> {
   if (options.enableShortValueOptimization) {
-    const endIndex = findBoundaries(body, index, 1000, ARRAY_BOUNDARY); // TODO: change the threshold
+    const endIndex = findBoundaries(body, index, options.shortValueThreshold, ARRAY_BOUNDARY);
 
     if (endIndex !== undefined) {
       const slice = body.slice(index, endIndex + 1);

@@ -7,7 +7,9 @@ const path = require("path");
 const DISABLE_ALL_OPTIMIZATIONS: Options = {
   chunkMillisThreshold: 50,
   enableShortBodyOptimization: false,
-  enableShortValueOptimization: false
+  enableShortValueOptimization: false,
+  shortBodyThreshold: 10000,
+  shortValueThreshold: 1000,
 };
 
 describe("parse", () => {
@@ -63,6 +65,4 @@ describe("parse", () => {
       await expect(parse(body)).rejects.toThrow();
     }
   )
-
-  // TODO: create a few test-cases for the nested cases
 })
