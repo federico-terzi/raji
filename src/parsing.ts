@@ -28,8 +28,14 @@ const OBJECT_BOUNDARY = 1;
 type BoundaryType = typeof ARRAY_BOUNDARY | typeof OBJECT_BOUNDARY;
 type EndIndex = number;
 
-export async function parse(body: string, options: Options = defaultOptions): Promise<unknown> {
-  if (body.length < options.shortBodyThreshold && options.enableShortBodyOptimization) {
+export async function parse(
+  body: string,
+  options: Options = defaultOptions
+): Promise<unknown> {
+  if (
+    body.length < options.shortBodyThreshold &&
+    options.enableShortBodyOptimization
+  ) {
     return Promise.resolve(JSON.parse(body));
   }
 
@@ -37,12 +43,11 @@ export async function parse(body: string, options: Options = defaultOptions): Pr
   return processAsync(generator, options.chunkMillisThreshold);
 }
 
-
 function findBoundaries(
   body: string,
   index: number,
   maxLength: number,
-  boundaryType: BoundaryType,
+  boundaryType: BoundaryType
 ): EndIndex | undefined {
   let deepLevel = 0;
   let insideString = false;
@@ -60,7 +65,7 @@ function findBoundaries(
     }
 
     if (ignoreNext) {
-      ignoreNext = false
+      ignoreNext = false;
     } else if (char === '"') {
       insideString = !insideString;
     } else if (char === "\\" && !ignoreNext) {
@@ -85,10 +90,15 @@ function* parseObject(
   targetObject: object,
   body: string,
   index: number,
-  options: Options,
+  options: Options
 ): Generator<void, EndIndex> {
   if (options.enableShortValueOptimization) {
-    const endIndex = findBoundaries(body, index, options.shortValueThreshold, OBJECT_BOUNDARY);
+    const endIndex = findBoundaries(
+      body,
+      index,
+      options.shortValueThreshold,
+      OBJECT_BOUNDARY
+    );
 
     if (endIndex !== undefined) {
       const slice = body.slice(index, endIndex + 1);
@@ -141,7 +151,6 @@ function* parseObjectIncrementally(
     } else {
       throw new Error("unexpected end of object, char: " + separator);
     }
-
   }
 
   return index;
@@ -151,10 +160,15 @@ function* parseArray(
   targetArray: unknown[],
   body: string,
   index: number,
-  options: Options,
+  options: Options
 ): Generator<void, EndIndex> {
   if (options.enableShortValueOptimization) {
-    const endIndex = findBoundaries(body, index, options.shortValueThreshold, ARRAY_BOUNDARY);
+    const endIndex = findBoundaries(
+      body,
+      index,
+      options.shortValueThreshold,
+      ARRAY_BOUNDARY
+    );
 
     if (endIndex !== undefined) {
       const slice = body.slice(index, endIndex + 1);
@@ -206,11 +220,7 @@ function* parseArrayIncrementally(
   return index;
 }
 
-
-export function parseString(
-  body: string,
-  index: number,
-): [string, EndIndex] {
+export function parseString(body: string, index: number): [string, EndIndex] {
   let ignoreNext = false;
 
   const [firstChar, firstCharEndIndex] = parseNextNonWhitespace(body, index);
@@ -243,13 +253,19 @@ export function parseString(
 
 export function parseNumberBoolOrNull(
   body: string,
-  index: number,
+  index: number
 ): [unknown, EndIndex] {
   let startIndex = index;
   while (true) {
     const char = body[index];
 
-    if (char === ',' || char === "]" || char === "}" || char === '"' || char === undefined) {
+    if (
+      char === "," ||
+      char === "]" ||
+      char === "}" ||
+      char === '"' ||
+      char === undefined
+    ) {
       const slice = body.slice(startIndex, index);
       return [JSON.parse(slice), index - 1];
     }
@@ -258,10 +274,9 @@ export function parseNumberBoolOrNull(
   }
 }
 
-
 function parseNextNonWhitespace(
   body: string,
-  index: number,
+  index: number
 ): [string, EndIndex] {
   while (true) {
     const char = body[index];
@@ -278,10 +293,7 @@ function parseNextNonWhitespace(
   }
 }
 
-function throwErrorIfNonWhitespaceIsPresent(
-  body: string,
-  index: number,
-): void {
+function throwErrorIfNonWhitespaceIsPresent(body: string, index: number): void {
   while (true) {
     const char = body[index];
 
@@ -297,7 +309,6 @@ function throwErrorIfNonWhitespaceIsPresent(
   }
 }
 
-
 function* parseValue(
   body: string,
   index: number,
@@ -307,11 +318,21 @@ function* parseValue(
 
   if (startChar === "{") {
     const objValue = {};
-    const objEndIndex = yield* parseObject(objValue, body, startCharEndIndex, options);
+    const objEndIndex = yield* parseObject(
+      objValue,
+      body,
+      startCharEndIndex,
+      options
+    );
     return [objValue, objEndIndex];
   } else if (startChar === "[") {
     const arrayValue = [];
-    const arrayEndIndex = yield* parseArray(arrayValue, body, startCharEndIndex, options);
+    const arrayEndIndex = yield* parseArray(
+      arrayValue,
+      body,
+      startCharEndIndex,
+      options
+    );
     return [arrayValue, arrayEndIndex];
   } else if (startChar === '"') {
     return parseString(body, startCharEndIndex);
