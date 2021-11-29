@@ -118,7 +118,7 @@
       const bigListOfObjects = generateBigListOfObjects();
 
       function runBlocking() {
-        document.getElementById("blockResults").innerText = "";
+        document.getElementById("blockResults").innerText = "Parsing...";
 
         const start = new Date().getTime();
 
@@ -132,7 +132,7 @@
       }
 
       async function runAsync() {
-        document.getElementById("asyncResults").innerText = "";
+        document.getElementById("asyncResults").innerText = "Parsing...";
 
         const start = new Date().getTime();
 
@@ -148,7 +148,7 @@
       function generateBigListOfObjects() {
         const obj = [];
 
-        for (let i = 0; i < 5000000; i++) {
+        for (let i = 0; i < 1000000; i++) {
           obj.push({
             name: i.toString(),
             val: i,
