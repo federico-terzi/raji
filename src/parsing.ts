@@ -32,6 +32,16 @@ export async function parse(
   body: string,
   customOptions?: Partial<Options>
 ): Promise<unknown> {
+  if (
+    body.length <
+      (customOptions?.shortBodyThreshold ??
+        defaultOptions.shortBodyThreshold) &&
+    (customOptions?.enableShortBodyOptimization ??
+      defaultOptions.enableShortBodyOptimization)
+  ) {
+    return Promise.resolve(JSON.parse(body));
+  }
+
   const options =
     customOptions !== undefined
       ? {
@@ -40,15 +50,12 @@ export async function parse(
         }
       : defaultOptions;
 
-  if (
-    body.length < options.shortBodyThreshold &&
-    options.enableShortBodyOptimization
-  ) {
-    return Promise.resolve(JSON.parse(body));
-  }
-
   const generator = parseRoot(body, 0, options);
-  return processAsync(generator, options.chunkMillisThreshold);
+  return processAsync(
+    generator,
+    options.chunkMillisThreshold,
+    options.enableSyncStartupOptimization ? options.asyncParsingAfterMillis : 0
+  );
 }
 
 function findBoundaries(

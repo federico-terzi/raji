@@ -21,7 +21,9 @@
 // SOFTWARE.
 
 export type Options = {
+  asyncParsingAfterMillis: number;
   chunkMillisThreshold: number;
+  enableSyncStartupOptimization: boolean;
   enableShortBodyOptimization: boolean;
   enableShortValueOptimization: boolean;
   shortBodyThreshold: number;
@@ -29,7 +31,9 @@ export type Options = {
 };
 
 export const defaultOptions: Options = {
+  asyncParsingAfterMillis: 20,
   chunkMillisThreshold: 50,
+  enableSyncStartupOptimization: true,
   enableShortBodyOptimization: true,
   enableShortValueOptimization: true,
   shortBodyThreshold: 10000,

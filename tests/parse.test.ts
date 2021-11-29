@@ -8,6 +8,7 @@ const DISABLE_ALL_OPTIMIZATIONS: Options = {
   ...defaultOptions,
   enableShortBodyOptimization: false,
   enableShortValueOptimization: false,
+  enableSyncStartupOptimization: false,
 };
 
 const TEST_CASES_OPTIONS_MATRIX: { name: string; options: Options }[] = [

@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-export function executeChunk(
+export function executeChunkAsync(
   generator: Generator<void>,
   timeoutMillis: number
 ): Promise<unknown | undefined> {
@@ -47,13 +47,44 @@ export function executeChunk(
   });
 }
 
+export function executeChunkSync(
+  generator: Generator<void>,
+  timeoutMillis: number
+): unknown | undefined {
+  const startTime = new Date().getTime();
+
+  while (new Date().getTime() - startTime < timeoutMillis) {
+    const next = generator.next();
+
+    if (next.done) {
+      return next.value[0];
+    }
+  }
+
+  return undefined;
+}
+
 export async function processAsync(
   generator: Generator<void, [unknown, number]>,
-  chunkTimeoutMillis: number
+  chunkTimeoutMillis: number,
+  asyncParsingAfterMillis: number
 ): Promise<unknown> {
+  // If the optimization is enabled, we execute the first "chunk" of work synchronously
+  // so that we don't have to pay the price of the setTimeout call for small payloads
+  if (asyncParsingAfterMillis > 0) {
+    try {
+      const syncParsed = executeChunkSync(generator, asyncParsingAfterMillis);
+      if (syncParsed !== undefined) {
+        return Promise.resolve(syncParsed);
+      }
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
   while (true) {
     try {
-      const parsed = await executeChunk(generator, chunkTimeoutMillis);
+      const parsed = await executeChunkAsync(generator, chunkTimeoutMillis);
       if (parsed !== undefined) {
         return Promise.resolve(parsed);
       }
