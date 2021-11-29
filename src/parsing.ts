@@ -132,7 +132,7 @@ function* parseObjectIncrementally(
     return nextCharEndIndex;
   }
 
-  while (true) {
+  outerLoop: while (true) {
     const [key, keyEndIndex] = parseString(body, index);
     index = keyEndIndex + 1;
 
@@ -150,14 +150,15 @@ function* parseObjectIncrementally(
     yield;
 
     const [separator, separatorEndIndex] = parseNextNonWhitespace(body, index);
-    if (separator === ",") {
-      index = separatorEndIndex + 1;
-      continue;
-    } else if (separator === "}") {
-      index = separatorEndIndex;
-      break;
-    } else {
-      throw new Error("unexpected end of object, char: " + separator);
+    switch (separator) {
+      case ",":
+        index = separatorEndIndex + 1;
+        continue;
+      case "}":
+        index = separatorEndIndex;
+        break outerLoop;
+      default:
+        throw new Error("unexpected end of object, char: " + separator);
     }
   }
 
@@ -205,7 +206,7 @@ function* parseArrayIncrementally(
     return nextCharEndIndex;
   }
 
-  while (true) {
+  outerLoop: while (true) {
     const [value, valueEndIndex] = yield* parseValue(body, index, options);
     index = valueEndIndex + 1;
 
@@ -214,14 +215,15 @@ function* parseArrayIncrementally(
     yield;
 
     const [separator, separatorEndIndex] = parseNextNonWhitespace(body, index);
-    if (separator === ",") {
-      index = separatorEndIndex + 1;
-      continue;
-    } else if (separator === "]") {
-      index = separatorEndIndex;
-      break;
-    } else {
-      throw new Error("unexpected end of object, char: " + separator);
+    switch (separator) {
+      case ",":
+        index = separatorEndIndex + 1;
+        continue;
+      case "]":
+        index = separatorEndIndex;
+        break outerLoop;
+      default:
+        throw new Error("unexpected end of array, char: " + separator);
     }
   }
 
@@ -267,15 +269,14 @@ export function parseNumberBoolOrNull(
   while (true) {
     const char = body[index];
 
-    if (
-      char === "," ||
-      char === "]" ||
-      char === "}" ||
-      char === '"' ||
-      char === undefined
-    ) {
-      const slice = body.slice(startIndex, index);
-      return [JSON.parse(slice), index - 1];
+    switch (char) {
+      case ",":
+      case "]":
+      case "}":
+      case '"':
+      case undefined:
+        const slice = body.slice(startIndex, index);
+        return [JSON.parse(slice), index - 1];
     }
 
     index++;
@@ -289,15 +290,18 @@ function parseNextNonWhitespace(
   while (true) {
     const char = body[index];
 
-    if (char === undefined) {
-      throw new Error("EOF while parsing non-whitespace");
+    switch (char) {
+      case " ":
+      case "\t":
+      case "\n":
+      case "\r":
+        index++;
+        break;
+      case undefined:
+        throw new Error("EOF while parsing non-whitespace");
+      default:
+        return [char, index];
     }
-
-    if (char !== " " && char !== "\t" && char !== "\n" && char !== "\r") {
-      return [char, index];
-    }
-
-    index++;
   }
 }
 
@@ -305,15 +309,18 @@ function throwErrorIfNonWhitespaceIsPresent(body: string, index: number): void {
   while (true) {
     const char = body[index];
 
-    if (char === undefined) {
-      return;
+    switch (char) {
+      case " ":
+      case "\t":
+      case "\n":
+      case "\r":
+        index++;
+        break;
+      case undefined:
+        return;
+      default:
+        throw new Error("expected whitespace, found: " + char);
     }
-
-    if (char !== " " && char !== "\t" && char !== "\n" && char !== "\r") {
-      throw new Error("expected whitespace, found: " + char);
-    }
-
-    index++;
   }
 }
 
@@ -324,28 +331,29 @@ function* parseValue(
 ): Generator<void, [unknown, EndIndex]> {
   const [startChar, startCharEndIndex] = parseNextNonWhitespace(body, index);
 
-  if (startChar === "{") {
-    const objValue = {};
-    const objEndIndex = yield* parseObject(
-      objValue,
-      body,
-      startCharEndIndex,
-      options
-    );
-    return [objValue, objEndIndex];
-  } else if (startChar === "[") {
-    const arrayValue = [];
-    const arrayEndIndex = yield* parseArray(
-      arrayValue,
-      body,
-      startCharEndIndex,
-      options
-    );
-    return [arrayValue, arrayEndIndex];
-  } else if (startChar === '"') {
-    return parseString(body, startCharEndIndex);
-  } else {
-    return parseNumberBoolOrNull(body, startCharEndIndex);
+  switch (startChar) {
+    case "{":
+      const objValue = {};
+      const objEndIndex = yield* parseObject(
+        objValue,
+        body,
+        startCharEndIndex,
+        options
+      );
+      return [objValue, objEndIndex];
+    case "[":
+      const arrayValue = [];
+      const arrayEndIndex = yield* parseArray(
+        arrayValue,
+        body,
+        startCharEndIndex,
+        options
+      );
+      return [arrayValue, arrayEndIndex];
+    case '"':
+      return parseString(body, startCharEndIndex);
+    default:
+      return parseNumberBoolOrNull(body, startCharEndIndex);
   }
 }
 
