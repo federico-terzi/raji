@@ -30,8 +30,16 @@ type EndIndex = number;
 
 export async function parse(
   body: string,
-  options: Options = defaultOptions
+  customOptions?: Partial<Options>
 ): Promise<unknown> {
+  const options =
+    customOptions !== undefined
+      ? {
+          ...defaultOptions,
+          ...customOptions,
+        }
+      : defaultOptions;
+
   if (
     body.length < options.shortBodyThreshold &&
     options.enableShortBodyOptimization
