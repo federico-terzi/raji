@@ -3,10 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title></title>
-    <script src="vendor/lodash.js"></script>
-    <script src="vendor/platform.min.js"></script>
-    <script src="vendor/benchmark.js"></script>
-    <script src="../dist/bundle.js"></script>
+    <script src="bundle.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
       body {
@@ -148,7 +145,7 @@
       function generateBigListOfObjects() {
         const obj = [];
 
-        for (let i = 0; i < 1000000; i++) {
+        for (let i = 0; i < 5000000; i++) {
           obj.push({
             name: i.toString(),
             val: i,
