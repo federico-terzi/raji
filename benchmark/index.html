@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title></title>
+    <script src="vendor/lodash.js"></script>
+    <script src="vendor/platform.min.js"></script>
+    <script src="vendor/benchmark.js"></script>
+    <script src="../dist/bundle.js"></script>
+  </head>
+  <body onload="onLoad()">
+    <h1>Raji benchmark</h1>
+    <p id="platform">Loading</p>
+    <button id="run" onclick="runBenchmark()">Run benchmark</button>
+    <div id="log" style="font-family: monospace"></div>
+
+    <script>
+      function onLoad() {
+        document.getElementById("platform").innerText = Benchmark.platform;
+      }
+
+      function logMessage(result) {
+        const textNode = document.createElement("p");
+        textNode.innerText = result;
+        document.getElementById("log").appendChild(textNode);
+        console.log(result);
+      }
+
+      function promisifyJSONParse(json) {
+        return new Promise((resolve) => resolve(JSON.parse(json)));
+      }
+
+      function runBenchmark() {
+        var suite = new Benchmark.Suite();
+
+        logMessage("generating test data...");
+
+        const bigListOfObjects = generateBigListOfObjects();
+        const smallJsonObject = generateSmallJsonObject();
+
+        logMessage("starting benchmark...");
+
+        let count = 0;
+
+        suite
+          .add("Small json object: JSON.parse reference (blocking)", {
+            defer: true,
+            fn: async function (deferred) {
+              const obj = await promisifyJSONParse(smallJsonObject);
+              count += Object.keys(obj).length;
+              deferred.resolve();
+            },
+          })
+          .add("Small json object: raji.parse (async)", {
+            defer: true,
+            fn: async function (deferred) {
+              const obj = await raji.parse(smallJsonObject);
+              count += Object.keys(obj).length;
+              deferred.resolve();
+            },
+          })
+          .add("Big list of objects: JSON.parse reference (blocking)", {
+            defer: true,
+            fn: async function (deferred) {
+              const obj = await promisifyJSONParse(bigListOfObjects);
+              count += obj.length;
+              deferred.resolve();
+            },
+          })
+          .add("Big list of objects: raji.parse (async)", {
+            defer: true,
+            fn: async function (deferred) {
+              const obj = await raji.parse(bigListOfObjects, {
+                //enableShortValueOptimization: false,
+                // shortBodyThreshold: number;
+                shortValueThreshold: 100,
+              });
+              count += obj.length;
+              deferred.resolve();
+            },
+          })
+          .on("cycle", function (event) {
+            logMessage(String(event.target));
+          })
+          .on("complete", function () {
+            logMessage("completed!");
+          })
+          .run({ async: true });
+      }
+
+      // Benchmark data generation functions
+
+      function generateBigListOfObjects() {
+        const obj = [];
+
+        for (let i = 0; i < 10000; i++) {
+          obj.push({
+            name: i.toString(),
+            val: i,
+          });
+        }
+
+        return JSON.stringify(obj);
+      }
+
+      function generateSmallJsonObject() {
+        return JSON.stringify({
+          field: "test",
+          another: { sub: "other", and: null },
+        });
+      }
+    </script>
+  </body>
+</html>

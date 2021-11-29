@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title></title>
+    <script src="vendor/lodash.js"></script>
+    <script src="vendor/platform.min.js"></script>
+    <script src="vendor/benchmark.js"></script>
+    <script src="../dist/bundle.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      .squares {
+        display: flex;
+        flex-wrap: wrap;
+        height: 300px;
+        width: 100%;
+      }
+
+      .square {
+        display: flex;
+        background-color: red;
+        height: 100px;
+        width: 100px;
+        margin: 3px;
+      }
+
+      .square:hover {
+        background-color: blue;
+      }
+
+      .square:active {
+        background-color: green;
+      }
+
+      .input {
+        width: 100%;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Raji Demo</h1>
+
+    <p>
+      This example shows the difference between
+      <b>blocking parsing </b> (with JSON.parse) versus
+      <b>async parsing using Raji</b>.
+    </p>
+
+    <h3>Blocking parse</h3>
+    <p>
+      To understand the difference, first click on "Run with JSON.parse
+      (blocking)", then move your mouse around the red squares at the bottom or
+      try to interact with the input field below.
+    </p>
+
+    <button id="runBlocking" onclick="runBlocking()">
+      Parse with JSON.parse (blocking)
+    </button>
+
+    <span id="blockResults"></span>
+
+    <input
+      type="text"
+      placeholder="Try interacting with me while parsing is executing"
+      class="input"
+    />
+
+    <p>
+      As you can see, the page becomes unresponsive while the big JSON is being
+      parsed.
+    </p>
+    <h3>Async parse</h3>
+
+    <p>
+      Now try clicking on "Run with raji.parse (async)", then moving your mouse
+      around the red squares at the bottom or interacting with the input field
+      below.
+    </p>
+
+    <button id="runAsync" onclick="runAsync()">
+      Parse with raji.parse (async)
+    </button>
+
+    <span id="asyncResults"></span>
+
+    <input
+      type="text"
+      placeholder="Try interacting with me while parsing is executing"
+      class="input"
+    />
+
+    <p>
+      As you can see, the page remains responsive, because Raji split the
+      parsing work over multiple frames.
+    </p>
+
+    <p>Move your mouse or click these squares to interact with the page.</p>
+
+    <div class="squares">
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+    </div>
+
+    <script>
+      const bigListOfObjects = generateBigListOfObjects();
+
+      function runBlocking() {
+        document.getElementById("blockResults").innerText = "";
+
+        const start = new Date().getTime();
+
+        const arr = JSON.parse(bigListOfObjects);
+
+        const end = new Date().getTime();
+
+        document.getElementById("blockResults").innerText = `Parsed ${
+          arr.length
+        } elements in ${end - start} ms (blocking)`;
+      }
+
+      async function runAsync() {
+        document.getElementById("asyncResults").innerText = "";
+
+        const start = new Date().getTime();
+
+        const arr = await raji.parse(bigListOfObjects);
+
+        const end = new Date().getTime();
+
+        document.getElementById("asyncResults").innerText = `Parsed ${
+          arr.length
+        } elements in ${end - start} ms (async)`;
+      }
+
+      function generateBigListOfObjects() {
+        const obj = [];
+
+        for (let i = 0; i < 5000000; i++) {
+          obj.push({
+            name: i.toString(),
+            val: i,
+          });
+        }
+
+        return JSON.stringify(obj);
+      }
+    </script>
+  </body>
+</html>
