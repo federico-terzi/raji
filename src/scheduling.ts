@@ -21,6 +21,30 @@
 // SOFTWARE.
 
 export function executeChunkAsync(
+  generator: Generator<void>
+): Promise<unknown | undefined> {
+  return new Promise((resolve, reject) => {
+    window.requestIdleCallback((deadline): void => {
+      try {
+        do {
+          const next = generator.next();
+
+          if (next.done) {
+            resolve(next.value[0]);
+            return;
+          }
+        } while (deadline.timeRemaining() > 0);
+
+        resolve(undefined);
+      } catch (error) {
+        reject(error);
+        return;
+      }
+    });
+  });
+}
+
+export function executeChunkAsyncFallback(
   generator: Generator<void>,
   timeoutMillis: number
 ): Promise<unknown | undefined> {
@@ -82,9 +106,15 @@ export async function processAsync(
     }
   }
 
+  const asyncExecutor =
+    typeof window !== "undefined" &&
+    typeof window.requestIdleCallback === "function"
+      ? executeChunkAsync
+      : executeChunkAsyncFallback;
+
   while (true) {
     try {
-      const parsed = await executeChunkAsync(generator, chunkTimeoutMillis);
+      const parsed = await asyncExecutor(generator, chunkTimeoutMillis);
       if (parsed !== undefined) {
         return Promise.resolve(parsed);
       }
