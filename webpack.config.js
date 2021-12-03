@@ -21,7 +21,7 @@ module.exports = {
       name: "raji",
       type: "var",
     },
-    filename: "bundle.js",
+    filename: "raji.js",
     path: path.resolve(__dirname, "dist"),
   },
   // optimization: {
