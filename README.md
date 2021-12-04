@@ -5,6 +5,17 @@
 [![npm bundle size](https://img.shields.io/bundlephobia/minzip/raji)](https://www.npmjs.com/package/raji)
 ![GitHub](https://img.shields.io/github/license/federico-terzi/raji)
 
+In a nutshell:
+
+* **RAJI guarantees that JSON parsing won't 
+freeze your UI, especially on slower mobile devices.**
+* It does so by dividing the parsing work in chunks.
+* It's extremely easy to integrate with web apps, you just need to change the `JSON.parse(payload)` calls to `await parse(payload)` calls.
+* RAJI chunks the work only when necessary. 
+If the payload is small enough, it invokes `JSON.parse` 
+synchronously under the hoods so you won't pay an additional overhead.
+* RAJI is extremely lightweight, only 1.71kB gzipped.
+
 > This project is experimental, so there's a lot to be improved. 
 > All feedback and help is highly appreciated!
 
@@ -14,7 +25,7 @@ The following video shows a quick demo of Raji, or you can try it out yourself a
 
 [![RAJI video demo](https://img.youtube.com/vi/VhDjtx4afts/0.jpg)](https://www.youtube.com/watch?v=VhDjtx4afts)
 
-### Short explanation
+### Explanation
 
 Traditionally, web applications have been using the `JSON.parse` method to convert JSON
 payloads into JS objects. 
