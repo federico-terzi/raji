@@ -1,8 +1,8 @@
 {
   "name": "raji",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Really Async JSON Interface: a non-blocking alternative to JSON.parse to keep web UIs responsive",
-  "main": "dist/index.js",
+  "main": "dist/raji.js",
   "types": "dist/index.d.ts",
   "author": "Federico Terzi",
   "license": "MIT",

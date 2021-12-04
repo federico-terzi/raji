@@ -31,7 +31,7 @@ type EndIndex = number;
 export async function parse(
   body: string,
   customOptions?: Partial<Options>
-): Promise<unknown> {
+): Promise<any> {
   if (
     body.length <
       (customOptions?.shortBodyThreshold ??
