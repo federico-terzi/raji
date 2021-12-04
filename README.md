@@ -1,5 +1,9 @@
 # RAJI
-Really Async JSON Interface: a non-blocking alternative to JSON.parse to keep web UIs responsive.
+> Really Async JSON Interface: a non-blocking alternative to JSON.parse to keep web UIs responsive.
+
+![npm](https://img.shields.io/npm/v/raji)
+![npm bundle size](https://img.shields.io/bundlephobia/minzip/raji)
+![GitHub](https://img.shields.io/github/license/federico-terzi/raji)
 
 Demo: https://federicoterzi.com/raji/
 
