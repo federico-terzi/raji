@@ -34,10 +34,7 @@ export async function parse(
 ): Promise<any> {
   if (
     body.length <
-      (customOptions?.shortBodyThreshold ??
-        defaultOptions.shortBodyThreshold) &&
-    (customOptions?.enableShortBodyOptimization ??
-      defaultOptions.enableShortBodyOptimization)
+    (customOptions?.shortBodyThreshold ?? defaultOptions.shortBodyThreshold)
   ) {
     return Promise.resolve(JSON.parse(body));
   }
@@ -54,7 +51,7 @@ export async function parse(
   return processAsync(
     generator,
     options.chunkMillisThreshold,
-    options.enableSyncStartupOptimization ? options.asyncParsingAfterMillis : 0
+    options.asyncParsingAfterMillis
   );
 }
 
@@ -107,7 +104,7 @@ function* parseObject(
   index: number,
   options: Options
 ): Generator<void, EndIndex> {
-  if (options.enableShortValueOptimization) {
+  if (options.shortValueThreshold > 0) {
     const endIndex = findBoundaries(
       body,
       index,
@@ -178,7 +175,7 @@ function* parseArray(
   index: number,
   options: Options
 ): Generator<void, EndIndex> {
-  if (options.enableShortValueOptimization) {
+  if (options.shortValueThreshold > 0) {
     const endIndex = findBoundaries(
       body,
       index,

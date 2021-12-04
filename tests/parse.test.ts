@@ -6,9 +6,9 @@ const path = require("path");
 
 const DISABLE_ALL_OPTIMIZATIONS: Options = {
   ...defaultOptions,
-  enableShortBodyOptimization: false,
-  enableShortValueOptimization: false,
-  enableSyncStartupOptimization: false,
+  asyncParsingAfterMillis: 0,
+  shortBodyThreshold: 0,
+  shortValueThreshold: 0,
 };
 
 const TEST_CASES_OPTIONS_MATRIX: { name: string; options: Options }[] = [
@@ -22,7 +22,7 @@ const TEST_CASES_OPTIONS_MATRIX: { name: string; options: Options }[] = [
     name: "enable short value optimization",
     options: {
       ...DISABLE_ALL_OPTIMIZATIONS,
-      enableShortValueOptimization: true,
+      shortValueThreshold: 1000,
     },
   },
   {
