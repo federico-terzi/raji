@@ -5,10 +5,14 @@
 ![npm bundle size](https://img.shields.io/bundlephobia/minzip/raji)
 ![GitHub](https://img.shields.io/github/license/federico-terzi/raji)
 
-Demo: https://federicoterzi.com/raji/
-
 > This project is experimental, so there's a lot to be improved. 
 > All feedback and help is highly appreciated!
+
+### Demo
+
+The following video shows a quick demo of Raji, or you can try it out yourself at this link: https://federicoterzi.com/raji/
+
+[![RAJI video demo](https://img.youtube.com/vi/VhDjtx4afts/0.jpg)](https://www.youtube.com/watch?v=VhDjtx4afts)
 
 ### Short explanation
 
