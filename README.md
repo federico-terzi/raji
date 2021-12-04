@@ -35,17 +35,59 @@ const object = JSON.parse(payload)
 you'll need to handle a promise:
 
 ```js
-const object = await raji.parse(payload);
+const object = await parse(payload);
 ```
-
 
 ## Installation
 
-TODO
+You can install it from NPM
+
+```
+npm install raji
+```
+
+Or using `yarn`:
+
+```
+yarn add raji
+```
+
+Or use directly in the browser:
+
+```html
+<script src="https://unpkg.com/raji/dist/raji.js"></script>
+```
 
 ## Usage
 
-TODO: options
+To use RAJI, you can call the async `parse` method:
+
+```ts
+import { parse } from "raji"
+
+const object = await parse(jsonPayload);
+```
+
+### Options
+
+That method also accept an optional `option` parameter
+to tune some optimizations:
+
+```ts
+const object = await parse(jsonPayload, {
+  shortBodyThreshold: 1000,
+});
+```
+
+These are the possible options:
+
+| Option | Description | Default value |
+| - | - | - |
+| `asyncParsingAfterMillis` | Number of milliseconds after which the processing should become asynchronous. This is helpful to improve performance for short payloads, for which paying the price of going async might not be worth it. Set to `0` to disable this optimization. | 20 |
+| `chunkMillisThreshold` | Maximum amount of time (in milliseconds) for which a chunk can be executed when using the `setTimeout` fallback | 50 |
+| `shortBodyThreshold` | If the payload is smaller (in bytes) than this value, RAJI will call `JSON.parse` directly. This makes it much more efficient for small payloads in which chunking would be a useless overhead. Set to `0` to disable this optimization. | 10000 |
+| `shortValueThreshold` | Maximum length of a JSON element (object or array) that can be feeded to `JSON.parse` during chunked processing. If an element is larger than that, it's recursively chunked. Set to `0` to disable this optimization. | 1000 |
+
 
 ## Testing
 
