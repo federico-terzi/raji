@@ -1,6 +1,6 @@
 {
   "name": "raji",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Really Async JSON Interface: a non-blocking alternative to JSON.parse to keep web UIs responsive",
   "main": "dist/raji.js",
   "types": "dist/index.d.ts",
