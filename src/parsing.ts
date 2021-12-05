@@ -47,7 +47,12 @@ export async function parse(
         }
       : defaultOptions;
 
-  const generator = parseRoot(body, 0, options);
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  const bodyBuffer = encoder.encode(body);
+
+  const generator = parseRoot(bodyBuffer, 0, options, decoder);
   return processAsync(
     generator,
     options.chunkMillisThreshold,
@@ -56,7 +61,7 @@ export async function parse(
 }
 
 function findBoundaries(
-  body: string,
+  bodyBuffer: Uint8Array,
   index: number,
   maxLength: number,
   boundaryType: BoundaryType
@@ -66,11 +71,11 @@ function findBoundaries(
   let ignoreNext = false;
   let offset = 0;
 
-  const startChar = boundaryType === ARRAY_BOUNDARY ? "[" : "{";
-  const endChar = boundaryType === ARRAY_BOUNDARY ? "]" : "}";
+  const startChar = boundaryType === ARRAY_BOUNDARY ? 91 : 123; // 91 = [ 123 = {
+  const endChar = boundaryType === ARRAY_BOUNDARY ? 93 : 125; // 93 = ] 125 = }
 
   while (offset < maxLength) {
-    const char = body[index];
+    const char = bodyBuffer[index];
 
     if (char === undefined) {
       throw new Error("unexpected EOF while searching for objects");
@@ -78,9 +83,11 @@ function findBoundaries(
 
     if (ignoreNext) {
       ignoreNext = false;
-    } else if (char === '"') {
+    } else if (char === 34) {
+      // 34 = "
       insideString = !insideString;
-    } else if (char === "\\" && !ignoreNext) {
+    } else if (char === 92 && !ignoreNext) {
+      // 92 = \
       ignoreNext = true;
     } else if (char === startChar && !insideString) {
       deepLevel++;
@@ -100,65 +107,87 @@ function findBoundaries(
 
 function* parseObject(
   targetObject: object,
-  body: string,
+  bodyBuffer: Uint8Array,
   index: number,
-  options: Options
+  options: Options,
+  decoder: TextDecoder
 ): Generator<void, EndIndex> {
   if (options.shortValueThreshold > 0) {
     const endIndex = findBoundaries(
-      body,
+      bodyBuffer,
       index,
       options.shortValueThreshold,
       OBJECT_BOUNDARY
     );
 
     if (endIndex !== undefined) {
-      const slice = body.slice(index, endIndex + 1);
-      Object.assign(targetObject, JSON.parse(slice));
+      const slice = bodyBuffer.slice(index, endIndex + 1);
+      const sliceString = decoder.decode(slice);
+      Object.assign(targetObject, JSON.parse(sliceString));
       return endIndex;
     }
   }
 
-  return yield* parseObjectIncrementally(targetObject, body, index, options);
+  return yield* parseObjectIncrementally(
+    targetObject,
+    bodyBuffer,
+    index,
+    options,
+    decoder
+  );
 }
 
 function* parseObjectIncrementally(
   targetObject: object,
-  body: string,
+  bodyBuffer: Uint8Array,
   index: number,
-  options: Options
+  options: Options,
+  decoder: TextDecoder
 ): Generator<void, EndIndex> {
   index++;
 
   // Object might be empty
-  const [nextChar, nextCharEndIndex] = parseNextNonWhitespace(body, index);
-  if (nextChar === "}") {
+  const [nextChar, nextCharEndIndex] = parseNextNonWhitespace(
+    bodyBuffer,
+    index
+  );
+  if (nextChar === 125) {
+    // 125 = }
     return nextCharEndIndex;
   }
 
   outerLoop: while (true) {
-    const [key, keyEndIndex] = parseString(body, index);
+    const [key, keyEndIndex] = parseString(bodyBuffer, index, decoder);
     index = keyEndIndex + 1;
 
-    const [colon, colonEndIndex] = parseNextNonWhitespace(body, index);
-    if (colon !== ":") {
+    const [colon, colonEndIndex] = parseNextNonWhitespace(bodyBuffer, index);
+    if (colon !== 58) {
+      // 58 = :
       throw new Error("invalid JSON syntax, expected colon :");
     }
     index = colonEndIndex + 1;
 
-    const [value, valueEndIndex] = yield* parseValue(body, index, options);
+    const [value, valueEndIndex] = yield* parseValue(
+      bodyBuffer,
+      index,
+      options,
+      decoder
+    );
     index = valueEndIndex + 1;
 
     targetObject[key] = value;
 
     yield;
 
-    const [separator, separatorEndIndex] = parseNextNonWhitespace(body, index);
+    const [separator, separatorEndIndex] = parseNextNonWhitespace(
+      bodyBuffer,
+      index
+    );
     switch (separator) {
-      case ",":
+      case 44: // 44 = ,
         index = separatorEndIndex + 1;
         continue;
-      case "}":
+      case 125: // 125 = }
         index = separatorEndIndex;
         break outerLoop;
       default:
@@ -171,21 +200,23 @@ function* parseObjectIncrementally(
 
 function* parseArray(
   targetArray: unknown[],
-  body: string,
+  bodyBuffer: Uint8Array,
   index: number,
-  options: Options
+  options: Options,
+  decoder: TextDecoder
 ): Generator<void, EndIndex> {
   if (options.shortValueThreshold > 0) {
     const endIndex = findBoundaries(
-      body,
+      bodyBuffer,
       index,
       options.shortValueThreshold,
       ARRAY_BOUNDARY
     );
 
     if (endIndex !== undefined) {
-      const slice = body.slice(index, endIndex + 1);
-      const parsedArray = JSON.parse(slice);
+      const slice = bodyBuffer.slice(index, endIndex + 1);
+      const sliceString = decoder.decode(slice);
+      const parsedArray = JSON.parse(sliceString);
       for (let i = 0; i < parsedArray.length; i++) {
         targetArray.push(parsedArray[i]);
       }
@@ -193,37 +224,56 @@ function* parseArray(
     }
   }
 
-  return yield* parseArrayIncrementally(targetArray, body, index, options);
+  return yield* parseArrayIncrementally(
+    targetArray,
+    bodyBuffer,
+    index,
+    options,
+    decoder
+  );
 }
 
 function* parseArrayIncrementally(
   targetArray: unknown[],
-  body: string,
+  bodyBuffer: Uint8Array,
   index: number,
-  options: Options
+  options: Options,
+  decoder: TextDecoder
 ): Generator<void, EndIndex> {
   index++;
 
   // Array might be empty
-  const [nextChar, nextCharEndIndex] = parseNextNonWhitespace(body, index);
-  if (nextChar === "]") {
+  const [nextChar, nextCharEndIndex] = parseNextNonWhitespace(
+    bodyBuffer,
+    index
+  );
+  if (nextChar === 93) {
+    // 93 = ]
     return nextCharEndIndex;
   }
 
   outerLoop: while (true) {
-    const [value, valueEndIndex] = yield* parseValue(body, index, options);
+    const [value, valueEndIndex] = yield* parseValue(
+      bodyBuffer,
+      index,
+      options,
+      decoder
+    );
     index = valueEndIndex + 1;
 
     targetArray.push(value);
 
     yield;
 
-    const [separator, separatorEndIndex] = parseNextNonWhitespace(body, index);
+    const [separator, separatorEndIndex] = parseNextNonWhitespace(
+      bodyBuffer,
+      index
+    );
     switch (separator) {
-      case ",":
+      case 44: // 44 = ,
         index = separatorEndIndex + 1;
         continue;
-      case "]":
+      case 93: // 93 = ]
         index = separatorEndIndex;
         break outerLoop;
       default:
@@ -234,18 +284,26 @@ function* parseArrayIncrementally(
   return index;
 }
 
-export function parseString(body: string, index: number): [string, EndIndex] {
+export function parseString(
+  bodyBuffer: Uint8Array,
+  index: number,
+  decoder: TextDecoder
+): [string, EndIndex] {
   let ignoreNext = false;
 
-  const [firstChar, firstCharEndIndex] = parseNextNonWhitespace(body, index);
-  if (firstChar !== '"') {
+  const [firstChar, firstCharEndIndex] = parseNextNonWhitespace(
+    bodyBuffer,
+    index
+  );
+  if (firstChar !== 34) {
+    // 34 = "
     throw new Error("expected start of string");
   }
 
   index = firstCharEndIndex + 1;
 
   while (true) {
-    const char = body[index];
+    const char = bodyBuffer[index];
 
     if (char === undefined) {
       throw new Error("unexpected EOF");
@@ -253,11 +311,14 @@ export function parseString(body: string, index: number): [string, EndIndex] {
 
     if (ignoreNext) {
       ignoreNext = false;
-    } else if (char === '"') {
-      const keySlice = body.slice(firstCharEndIndex, index + 1);
-      const key = JSON.parse(keySlice);
+    } else if (char === 34) {
+      // 34 = "
+      const keySlice = bodyBuffer.slice(firstCharEndIndex, index + 1);
+      const keyString = decoder.decode(keySlice);
+      const key = JSON.parse(keyString);
       return [key, index];
-    } else if (char === "\\" && !ignoreNext) {
+    } else if (char === 92 && !ignoreNext) {
+      // 92 = \
       ignoreNext = true;
     }
 
@@ -266,21 +327,23 @@ export function parseString(body: string, index: number): [string, EndIndex] {
 }
 
 export function parseNumberBoolOrNull(
-  body: string,
-  index: number
+  bodyBuffer: Uint8Array,
+  index: number,
+  decoder: TextDecoder
 ): [unknown, EndIndex] {
   let startIndex = index;
   while (true) {
-    const char = body[index];
+    const char = bodyBuffer[index];
 
     switch (char) {
-      case ",":
-      case "]":
-      case "}":
-      case '"':
+      case 44: // ,
+      case 93: // ]
+      case 125: // }
+      case 34: // "
       case undefined:
-        const slice = body.slice(startIndex, index);
-        return [JSON.parse(slice), index - 1];
+        const slice = bodyBuffer.slice(startIndex, index);
+        const sliceString = decoder.decode(slice);
+        return [JSON.parse(sliceString), index - 1];
     }
 
     index++;
@@ -288,17 +351,17 @@ export function parseNumberBoolOrNull(
 }
 
 function parseNextNonWhitespace(
-  body: string,
+  bodyBuffer: Uint8Array,
   index: number
-): [string, EndIndex] {
+): [number, EndIndex] {
   while (true) {
-    const char = body[index];
+    const char = bodyBuffer[index];
 
     switch (char) {
-      case " ":
-      case "\t":
-      case "\n":
-      case "\r":
+      case 32: // Space
+      case 9: // Tab
+      case 10: // New line
+      case 13: // Carriage return
         index++;
         break;
       case undefined:
@@ -309,15 +372,18 @@ function parseNextNonWhitespace(
   }
 }
 
-function throwErrorIfNonWhitespaceIsPresent(body: string, index: number): void {
+function throwErrorIfNonWhitespaceIsPresent(
+  bodyBuffer: Uint8Array,
+  index: number
+): void {
   while (true) {
-    const char = body[index];
+    const char = bodyBuffer[index];
 
     switch (char) {
-      case " ":
-      case "\t":
-      case "\n":
-      case "\r":
+      case 32: // Space
+      case 9: // Tab
+      case 10: // New line
+      case 13: // Carriage return
         index++;
         break;
       case undefined:
@@ -329,46 +395,58 @@ function throwErrorIfNonWhitespaceIsPresent(body: string, index: number): void {
 }
 
 function* parseValue(
-  body: string,
+  bodyBuffer: Uint8Array,
   index: number,
-  options: Options
+  options: Options,
+  decoder: TextDecoder
 ): Generator<void, [unknown, EndIndex]> {
-  const [startChar, startCharEndIndex] = parseNextNonWhitespace(body, index);
+  const [startChar, startCharEndIndex] = parseNextNonWhitespace(
+    bodyBuffer,
+    index
+  );
 
   switch (startChar) {
-    case "{":
+    case 123: // {
       const objValue = {};
       const objEndIndex = yield* parseObject(
         objValue,
-        body,
+        bodyBuffer,
         startCharEndIndex,
-        options
+        options,
+        decoder
       );
       return [objValue, objEndIndex];
-    case "[":
+    case 91: // [
       const arrayValue = [];
       const arrayEndIndex = yield* parseArray(
         arrayValue,
-        body,
+        bodyBuffer,
         startCharEndIndex,
-        options
+        options,
+        decoder
       );
       return [arrayValue, arrayEndIndex];
-    case '"':
-      return parseString(body, startCharEndIndex);
+    case 34: // "
+      return parseString(bodyBuffer, startCharEndIndex, decoder);
     default:
-      return parseNumberBoolOrNull(body, startCharEndIndex);
+      return parseNumberBoolOrNull(bodyBuffer, startCharEndIndex, decoder);
   }
 }
 
 function* parseRoot(
-  body: string,
+  bodyBuffer: Uint8Array,
   index: number,
-  options: Options
+  options: Options,
+  decoder: TextDecoder
 ): Generator<void, [unknown, EndIndex]> {
-  const [value, endIndex] = yield* parseValue(body, index, options);
+  const [value, endIndex] = yield* parseValue(
+    bodyBuffer,
+    index,
+    options,
+    decoder
+  );
 
-  throwErrorIfNonWhitespaceIsPresent(body, endIndex + 1);
+  throwErrorIfNonWhitespaceIsPresent(bodyBuffer, endIndex + 1);
 
   return [value, endIndex];
 }
