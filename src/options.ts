@@ -25,6 +25,7 @@ export type Options = {
   chunkMillisThreshold: number;
   shortBodyThreshold: number;
   shortValueThreshold: number;
+  yieldAfterThreshold: number;
 };
 
 export const defaultOptions: Options = {
@@ -32,4 +33,5 @@ export const defaultOptions: Options = {
   chunkMillisThreshold: 50,
   shortBodyThreshold: 10000,
   shortValueThreshold: 1000,
+  yieldAfterThreshold: 2000,
 };

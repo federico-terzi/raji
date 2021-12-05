@@ -106,6 +106,7 @@ These are the possible options:
 | `chunkMillisThreshold` | Maximum amount of time (in milliseconds) for which a chunk can be executed when using the `setTimeout` fallback | 50 |
 | `shortBodyThreshold` | If the payload is smaller (in bytes) than this value, RAJI will call `JSON.parse` directly. This makes it much more efficient for small payloads in which chunking would be a useless overhead. Set to `0` to disable this optimization. | 10000 |
 | `shortValueThreshold` | Maximum length of a JSON element (object or array) that can be feeded to `JSON.parse` during chunked processing. If an element is larger than that, it's recursively chunked. Set to `0` to disable this optimization. | 1000 |
+| `yieldAfterThreshold` | RAJI batches the parsing "yields" if the number of scanned chars is below this threshold, improving performance. Set to `0` to disable this optimization. | 2000 |
 
 
 ## Testing

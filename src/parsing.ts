@@ -136,6 +136,7 @@ function* parseObjectIncrementally(
     return nextCharEndIndex;
   }
 
+  let lastYieldIndex = index;
   outerLoop: while (true) {
     const [key, keyEndIndex] = parseString(body, index);
     index = keyEndIndex + 1;
@@ -151,7 +152,10 @@ function* parseObjectIncrementally(
 
     targetObject[key] = value;
 
-    yield;
+    if (index - lastYieldIndex > options.yieldAfterThreshold) {
+      lastYieldIndex = index;
+      yield;
+    }
 
     const [separator, separatorEndIndex] = parseNextNonWhitespace(body, index);
     switch (separator) {
@@ -210,13 +214,17 @@ function* parseArrayIncrementally(
     return nextCharEndIndex;
   }
 
+  let lastYieldIndex = index;
   outerLoop: while (true) {
     const [value, valueEndIndex] = yield* parseValue(body, index, options);
     index = valueEndIndex + 1;
 
     targetArray.push(value);
 
-    yield;
+    if (index - lastYieldIndex > options.yieldAfterThreshold) {
+      lastYieldIndex = index;
+      yield;
+    }
 
     const [separator, separatorEndIndex] = parseNextNonWhitespace(body, index);
     switch (separator) {

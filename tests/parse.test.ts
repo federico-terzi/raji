@@ -9,6 +9,7 @@ const DISABLE_ALL_OPTIMIZATIONS: Options = {
   asyncParsingAfterMillis: 0,
   shortBodyThreshold: 0,
   shortValueThreshold: 0,
+  yieldAfterThreshold: 0,
 };
 
 const TEST_CASES_OPTIONS_MATRIX: { name: string; options: Options }[] = [
